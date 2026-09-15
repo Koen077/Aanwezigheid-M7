@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aanwezigheid voetbalteam</title>
+<style>
+  :root {
+    --border: #ddd;
+    --border-strong: #bbb;
+    --text-secondary: #666;
+    --text-muted: #999;
+    --surface-1: #f7f7f7;
+    --surface-2: #ffffff;
+    --accent: #1d6f42;
+    --accent-bg: #e6f4ea;
+    --danger: #b3261e;
+    --danger-bg: #fbeaea;
+    --amber: #8a5a00;
+    --amber-bg: #fdf1dc;
+    --blue: #0c447c;
+    --blue-bg: #e6f1fb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --border: #3a3a3a;
+      --border-strong: #555;
+      --text-secondary: #b5b5b5;
+      --text-muted: #888;
+      --surface-1: #1e1e1e;
+      --surface-2: #141414;
+      --accent: #5dcaa5;
+      --accent-bg: #0f3327;
+      --danger: #f09595;
+      --danger-bg: #3a1717;
+      --amber: #efc27a;
+      --amber-bg: #3a2b0d;
+      --blue: #85b7eb;
+      --blue-bg: #0c2a45;
+    }
+    body { background: #0b0b0b; color: #eee; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) { body { color: #eee; } }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: var(--text-secondary); font-size: 14px; margin: 0 0 20px; }
+  .deadline {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--amber-bg); color: var(--amber);
+    border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 20px;
+  }
+  .card {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 16px;
+  }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary); }
+  select {
+    width: 100%; height: 40px; border-radius: 8px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: inherit; font-size: 15px; padding: 0 10px; margin-bottom: 4px;
+  }
+  .status-options { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .status-option {
+    display: flex; align-items: center; gap: 10px; border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; cursor: pointer; font-size: 14px;
+  }
+  .status-option:hover { border-color: var(--border-strong); }
+  .status-option input { margin: 0; }
+  .status-option.selected { border-color: var(--accent); background: var(--accent-bg); }
+  button {
+    width: 100%; height: 42px; border-radius: 8px; border: none;
+    background: var(--accent); color: #fff; font-size: 15px; font-weight: 600;
+    cursor: pointer; margin-top: 14px;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); margin-top: 8px; }
+  .error { color: var(--danger); font-size: 13px; margin-top: 6px; }
+  .confirm {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--accent-bg); color: var(--accent);
+    border-radius: 8px; padding: 12px 14px; font-size: 14px; margin-bottom: 10px;
+  }
+  h2 { font-size: 16px; font-weight: 600; margin: 24px 0 10px; }
+  .group { margin-bottom: 14px; }
+  .group-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot.play { background: var(--accent); }
+  .dot.watch { background: var(--blue); }
+  .dot.away { background: var(--danger); }
+  .dot.later { background: var(--amber); }
+  .name-pill {
+    display: inline-block; background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 999px; padding: 4px 10px; font-size: 13px; margin: 3px 4px 0 0;
+  }
+  .empty { color: var(--text-muted); font-size: 13px; }
+  .refresh-row { display: flex; justify-content: space-between; align-items: center; }
+  .refresh-row button { width: auto; height: 32px; padding: 0 12px; font-size: 13px; margin-top: 0; }
+  .count { color: var(--text-muted); font-size: 12px; }
+  .loading { color: var(--text-muted); font-size: 14px; padding: 20px 0; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Aanwezigheid voetbalteam</h1>
+<p class="sub">Kies je naam en geef aan of je aanwezig bent.</p>
+<div class="deadline" id="deadlineBox"></div>
+
+<div id="app"><div class="loading">Laden...</div></div>
+
+<h2>Overzicht deze week</h2>
+<div class="card">
+  <div class="refresh-row">
+    <span class="count" id="responseCount"></span>
+    <button class="secondary" onclick="refreshOverview()" style="border:1px solid var(--border-strong); color:inherit;">Vernieuwen</button>
+  </div>
+  <div id="overview" style="margin-top:12px;"></div>
+</div>
+
+<script>
+const ALL_NAMES = [
+  "Aaron","Bjorn","Bram","Collin","Dain","Dylan","Jens","Jesly","Job","Joost",
+  "Joris","Jurn","Koen","Lucas","Luuk","Niels","Raf","Ruud","Scott","Sepp",
+  "Servaas","Sil","Sjoerd","Stan van de Groes","Stan van Dijck","Sven Obbing",
+  "Thijs Janssen","Thijs van Grimbergen","Tim","Timo","Tuur","Tycho","Wouter"
+];
+
+const STATUS_OPTIONS = [
+  { id: "play", label: "Aanwezig voetballen", dot: "play" },
+  { id: "watch", label: "Aanwezig kijken", dot: "watch" },
+  { id: "away", label: "Afwezig", dot: "away" },
+  { id: "later", label: "Later", dot: "later" }
+];
+
+const WEEKDAY_ORDER = ["zon","maa","din","woe","don","vri","zat"];
+
+function getAmsterdamParts() {
+  const fmt = new Intl.DateTimeFormat("nl-NL", {
+    timeZone: "Europe/Amsterdam", weekday: "short", year: "numeric",
+    month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false
+  });
+  const parts = {};
+  fmt.formatToParts(new Date()).forEach(p => { parts[p.type] = p.value; });
+  const weekdayIdx = WEEKDAY_ORDER.findIndex(w => parts.weekday.toLowerCase().startsWith(w));
+  return {
+    weekdayIdx,
+    year: parseInt(parts.year, 10),
+    month: parseInt(parts.month, 10),
+    day: parseInt(parts.day, 10),
+    hour: parseInt(parts.hour, 10) === 24 ? 0 : parseInt(parts.hour, 10),
+    minute: parseInt(parts.minute, 10)
+  };
+}
+
+function getWeekKey() {
+  const now = getAmsterdamParts();
+  let daysSinceMonday = (now.weekdayIdx - 1 + 7) % 7;
+  if (now.weekdayIdx === 1 && now.hour < 12) {
+    daysSinceMonday = 7;
+  }
+  const base = new Date(Date.UTC(now.year, now.month - 1, now.day));
+  base.setUTCDate(base.getUTCDate() - daysSinceMonday);
+  const y = base.getUTCFullYear();
+  const m = String(base.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(base.getUTCDate()).padStart(2, "0");
+  const deadlineDate = new Date(base);
+  deadlineDate.setUTCDate(deadlineDate.getUTCDate() + 3);
+  const resetDate = new Date(base);
+  resetDate.setUTCDate(resetDate.getUTCDate() + 7);
+  return { key: `${y}-${m}-${d}`, deadlineDate, resetDate };
+}
+
+function isPastDeadline() {
+  const now = getAmsterdamParts();
+  if (now.weekdayIdx === 4) return now.hour >= 15;
+  if (now.weekdayIdx === 5 || now.weekdayIdx === 6 || now.weekdayIdx === 0) return true;
+  if (now.weekdayIdx === 1) return now.hour < 12;
+  return false;
+}
+
+const WEEK = getWeekKey();
+const SHARED_KEY = `signups:${WEEK.key}`;
+const PERSONAL_KEY = "my-selection";
+const PAST_DEADLINE = isPastDeadline();
+
+let selectedName = null;
+let selectedStatus = null;
+let mySubmission = null;
+
+function fmtDeadline(d) {
+  return `donderdag ${d.getUTCDate()}/${d.getUTCMonth()+1} om 15:00 uur`;
+}
+function fmtReset(d) {
+  return `maandag ${d.getUTCDate()}/${d.getUTCMonth()+1} om 12:00 uur`;
+}
+
+document.getElementById("deadlineBox").innerHTML = PAST_DEADLINE
+  ? `<i class="ti ti-lock"></i><span>Deadline (${fmtDeadline(WEEK.deadlineDate)}) is verstreken. Wie niet heeft ingevuld staat op afwezig. De lijst reset ${fmtReset(WEEK.resetDate)}.</span>`
+  : `<i class="ti ti-clock"></i><span>Deadline invullen: <strong>${fmtDeadline(WEEK.deadlineDate)}</strong></span>`;
+
+async function loadSharedSignups() {
+  try {
+    const res = await window.storage.get(SHARED_KEY, true);
+    return res ? JSON.parse(res.value) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+async function saveSharedSignups(data) {
+  await window.storage.set(SHARED_KEY, JSON.stringify(data), true);
+}
+
+async function loadMySubmission() {
+  try {
+    const res = await window.storage.get(PERSONAL_KEY, false);
+    if (!res) return null;
+    const parsed = JSON.parse(res.value);
+    if (parsed.week !== WEEK.key) return null;
+    return parsed;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function saveMySubmission(name, status) {
+  await window.storage.set(PERSONAL_KEY, JSON.stringify({ week: WEEK.key, name, status }), false);
+}
+
+function renderForm(availableNames) {
+  const app = document.getElementById("app");
+  if (availableNames.length === 0) {
+    app.innerHTML = `<div class="card"><p class="empty">Alle namen zijn al gekozen. Neem contact op als jouw naam ontbreekt.</p></div>`;
+    return;
+  }
+  const options = STATUS_OPTIONS.map(o =>
+    `<label class="status-option" id="opt-${o.id}">
+       <input type="radio" name="status" value="${o.id}" onchange="selectStatus('${o.id}')">
+       <span class="dot ${o.dot}"></span>${o.label}
+     </label>`
+  ).join("");
+  app.innerHTML = `
+    <div class="card">
+      <label for="nameSelect">Jouw naam</label>
+      <select id="nameSelect" onchange="selectedName=this.value; document.getElementById('formError').textContent='';">
+        <option value="">Kies een naam</option>
+        ${availableNames.map(n => `<option value="${n}">${n}</option>`).join("")}
+      </select>
+      <label style="margin-top:16px;">Aanwezigheid</label>
+      <div class="status-options">${options}</div>
+      <div class="error" id="formError"></div>
+      <button onclick="submitForm()">Versturen</button>
+    </div>`;
+}
+
+function selectStatus(id) {
+  selectedStatus = id;
+  document.querySelectorAll(".status-option").forEach(el => el.classList.remove("selected"));
+  document.getElementById(`opt-${id}`).classList.add("selected");
+  document.getElementById("formError").textContent = "";
+}
+
+async function submitForm() {
+  const nameSelect = document.getElementById("nameSelect");
+  const errorEl = document.getElementById("formError");
+  selectedName = nameSelect.value;
+  if (!selectedName) {
+    errorEl.textContent = "Kies eerst je naam.";
+    return;
+  }
+  if (!selectedStatus) {
+    errorEl.textContent = "Kies een aanwezigheidsoptie.";
+    return;
+  }
+  const current = await loadSharedSignups();
+  if (current[selectedName]) {
+    errorEl.textContent = "Deze naam is net door iemand anders gekozen. Kies een andere naam.";
+    await init();
+    return;
+  }
+  current[selectedName] = { status: selectedStatus, ts: Date.now() };
+  await saveSharedSignups(current);
+  await saveMySubmission(selectedName, selectedStatus);
+  mySubmission = { name: selectedName, status: selectedStatus };
+  renderConfirmation();
+  refreshOverview();
+}
+
+function renderConfirmation() {
+  const statusLabel = STATUS_OPTIONS.find(o => o.id === mySubmission.status).label;
+  document.getElementById("app").innerHTML = `
+    <div class="card">
+      <div class="confirm"><i class="ti ti-check"></i>
+        <span><strong>${mySubmission.name}</strong> staat genoteerd als <strong>${statusLabel}</strong>.</span>
+      </div>
+      ${PAST_DEADLINE ? "" : `<button class="secondary" style="border:1px solid var(--border-strong); color:inherit;" onclick="changeAnswer()">Antwoord wijzigen</button>`}
+    </div>`;
+}
+
+async function changeAnswer() {
+  if (PAST_DEADLINE) return;
+  const current = await loadSharedSignups();
+  if (mySubmission && current[mySubmission.name]) {
+    delete current[mySubmission.name];
+    await saveSharedSignups(current);
+  }
+  mySubmission = null;
+  selectedName = null;
+  selectedStatus = null;
+  await window.storage.delete(PERSONAL_KEY, false).catch(() => {});
+  await init();
+  refreshOverview();
+}
+
+async function autoFillAbsent() {
+  const current = await loadSharedSignups();
+  const taken = Object.keys(current);
+  const missing = ALL_NAMES.filter(n => !taken.includes(n));
+  if (missing.length === 0) return;
+  missing.forEach(n => {
+    current[n] = { status: "away", ts: Date.now(), auto: true };
+  });
+  await saveSharedSignups(current);
+}
+
+function renderLocked() {
+  document.getElementById("app").innerHTML = `
+    <div class="card">
+      <div class="confirm" style="background: var(--danger-bg); color: var(--danger);">
+        <i class="ti ti-lock"></i>
+        <span>De deadline is verstreken, invullen kan niet meer.</span>
+      </div>
+    </div>`;
+}
+
+async function refreshOverview() {
+  const data = await loadSharedSignups();
+  const overview = document.getElementById("overview");
+  const count = document.getElementById("responseCount");
+  const entries = Object.entries(data);
+  count.textContent = `${entries.length} van ${ALL_NAMES.length} ingevuld`;
+  if (entries.length === 0) {
+    overview.innerHTML = `<p class="empty">Nog niemand heeft ingevuld.</p>`;
+    return;
+  }
+  overview.innerHTML = STATUS_OPTIONS.map(opt => {
+    const names = entries.filter(([, v]) => v.status === opt.id).map(([n]) => n);
+    if (names.length === 0) return "";
+    return `<div class="group">
+      <div class="group-title"><span class="dot ${opt.dot}"></span>${opt.label} (${names.length})</div>
+      ${names.map(n => `<span class="name-pill">${n}</span>`).join("")}
+    </div>`;
+  }).join("");
+}
+
+async function init() {
+  if (PAST_DEADLINE) {
+    await autoFillAbsent();
+    mySubmission = await loadMySubmission();
+    if (mySubmission) {
+      renderConfirmation();
+    } else {
+      renderLocked();
+    }
+    return;
+  }
+  mySubmission = await loadMySubmission();
+  if (mySubmission) {
+    const shared = await loadSharedSignups();
+    if (shared[mySubmission.name]) {
+      renderConfirmation();
+      return;
+    }
+    mySubmission = null;
+  }
+  const shared = await loadSharedSignups();
+  const taken = Object.keys(shared);
+  const available = ALL_NAMES.filter(n => !taken.includes(n));
+  renderForm(available);
+}
+
+init();
+refreshOverview();
+</script>
+</body>
+</html>
